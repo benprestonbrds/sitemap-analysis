@@ -2,6 +2,7 @@ import requests
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 import pandas as pd
+from bs4 import BeautifulSoup
 import streamlit as st
 
 headers = {
@@ -62,7 +63,9 @@ def analyze_sitemap(sitemap_url):
             elif len(path_parts) == 2:
                 top_level_dir = "Others"
             else:
-                top_level_dir = path_parts[1]  # Extract top-level directory
+                top_level_dir = path_parts[1]
+
+            title, description, h1 = extract_page_metadata(url)  # Extract top-level directory
             if top_level_dir in top_level_directories:
                 top_level_directories[top_level_dir] += 1
             else:
@@ -71,8 +74,28 @@ def analyze_sitemap(sitemap_url):
     return url_count, top_level_directories, urls
 
 
+
+def extract_page_metadata(url):
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        title = soup.title.string.strip() if soup.title and soup.title.string else ""
+        
+        description_tag = soup.find("meta", attrs={"name": "description"})
+        description = description_tag["content"].strip() if description_tag and "content" in description_tag.attrs else ""
+        
+        h1_tag = soup.find("h1")
+        h1 = h1_tag.get_text().strip() if h1_tag else ""
+        
+        return title, description, h1
+    except Exception as e:
+        return "", "", ""
+
+
 # Streamlit app
-st.header("Boardriders SPAC Sitemap Analyser", divider='rainbow')
+st.header("Overdose Sitemap Analyzer", divider='rainbow')
 
 analysis_type = st.radio("Choose analysis type:", ("Sitemap Index", "Sitemap File(s)"))
 
@@ -165,7 +188,16 @@ if analysis_type == "Sitemap Index":
                                 top_level_dir = "Others"
                             else:
                                 top_level_dir = path_parts[1]
-                            url_data.append({'Sitemap': sitemap, 'URL': url, 'Top-Level Directory': top_level_dir})
+
+            title, description, h1 = extract_page_metadata(url)
+                            url_data.append({
+        'Sitemap': sitemap,
+        'URL': url,
+        'Top-Level Directory': top_level_dir,
+        'Page Title': title,
+        'Meta Description': description,
+        'H1': h1
+    })
 
                     # Create URL DataFrame
                     url_df = pd.DataFrame(url_data)
@@ -264,7 +296,16 @@ elif analysis_type == "Sitemap File(s)":
                                 top_level_dir = "Others"
                             else:
                                 top_level_dir = path_parts[1]
-                            url_data.append({'Sitemap': sitemap, 'URL': url, 'Top-Level Directory': top_level_dir})
+
+            title, description, h1 = extract_page_metadata(url)
+                            url_data.append({
+        'Sitemap': sitemap,
+        'URL': url,
+        'Top-Level Directory': top_level_dir,
+        'Page Title': title,
+        'Meta Description': description,
+        'H1': h1
+    })
 
                     # Create URL DataFrame
                     url_df = pd.DataFrame(url_data)
