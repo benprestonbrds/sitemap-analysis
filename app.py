@@ -72,7 +72,7 @@ def analyze_sitemap(sitemap_url):
 
 
 # Streamlit app
-st.header("Overdose Sitemap Analyzer", divider='rainbow')
+st.header("Boardriders SPAC Sitemap Analyser", divider='rainbow')
 
 analysis_type = st.radio("Choose analysis type:", ("Sitemap Index", "Sitemap File(s)"))
 
