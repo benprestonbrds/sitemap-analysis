@@ -296,4 +296,3 @@ elif analysis_type == "Sitemap File(s)":
             st.write("The website might have some bot detection that prevents the script from working.")
 
 st.divider()
-st.info("Developed by Darren Huang. If you have any questions or found a bug, please feel free to reach out!", icon="ℹ️")
