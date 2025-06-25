@@ -189,15 +189,18 @@ if analysis_type == "Sitemap Index":
                             else:
                                 top_level_dir = path_parts[1]
 
-            title, description, h1 = extract_page_metadata(url)
-                            url_data.append({
-        'Sitemap': sitemap,
-        'URL': url,
-        'Top-Level Directory': top_level_dir,
-        'Page Title': title,
-        'Meta Description': description,
-        'H1': h1
-    })
+            top_level_dir = path_parts[1]
+
+title, description, h1 = extract_page_metadata(url)
+
+url_data.append({
+    'Sitemap': sitemap,
+    'URL': url,
+    'Top-Level Directory': top_level_dir,
+    'Page Title': title,
+    'Meta Description': description,
+    'H1': h1
+})
 
                     # Create URL DataFrame
                     url_df = pd.DataFrame(url_data)
