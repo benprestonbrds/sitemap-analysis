@@ -4,9 +4,19 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from bs4 import BeautifulSoup
 import streamlit as st
+import time
+import random
+
+# Rotating user agents to avoid basic bot detection
+user_agents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:92.0)",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
+]
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36",
+    "User-Agent": random.choice(user_agents),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Cache-Control": "no-cache",
     "Accept-Encoding": "gzip",
@@ -15,6 +25,8 @@ headers = {
 
 def extract_page_metadata(url):
     try:
+        time.sleep(1)  # Delay to prevent getting blocked
+        headers["User-Agent"] = random.choice(user_agents)
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -79,7 +91,7 @@ def analyze_sitemap(sitemap_url):
     return url_count, top_level_directories, urls
 
 # Streamlit UI
-st.header("Boardriders Sitemap Analyser", divider='rainbow')
+st.header("Overdose Sitemap Analyzer", divider='rainbow')
 analysis_type = st.radio("Choose analysis type:", ("Sitemap Index", "Sitemap File(s)"))
 
 if analysis_type == "Sitemap Index":
@@ -137,7 +149,7 @@ if analysis_type == "Sitemap Index":
         url_df = pd.DataFrame(url_data)
         st.subheader("All URLs with Metadata")
         st.dataframe(url_df.head(200))
-        st.download_button("Download CSV", url_df.to_csv().encode('utf-8'), "sitemap_urls.csv", "text/csv")
+        st.download_button("Download CSV", url_df.to_csv(index=False).encode('utf-8'), "sitemap_urls.csv", "text/csv")
 
 elif analysis_type == "Sitemap File(s)":
     sitemap_urls = st.text_area("Enter the Sitemap File(s), one per line:")
@@ -182,6 +194,6 @@ elif analysis_type == "Sitemap File(s)":
         url_df = pd.DataFrame(url_data)
         st.subheader("All URLs with Metadata")
         st.dataframe(url_df.head(200))
-        st.download_button("Download CSV", url_df.to_csv().encode('utf-8'), "sitemap_urls.csv", "text/csv")
+        st.download_button("Download CSV", url_df.to_csv(index=False).encode('utf-8'), "sitemap_urls.csv", "text/csv")
 
 st.divider()
