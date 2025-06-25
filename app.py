@@ -79,7 +79,7 @@ def analyze_sitemap(sitemap_url):
     return url_count, top_level_directories, urls
 
 # Streamlit UI
-st.header("Overdose Sitemap Analyzer", divider='rainbow')
+st.header("Boardriders Sitemap Analyser", divider='rainbow')
 analysis_type = st.radio("Choose analysis type:", ("Sitemap Index", "Sitemap File(s)"))
 
 if analysis_type == "Sitemap Index":
