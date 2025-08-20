@@ -4,11 +4,12 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from bs4 import BeautifulSoup
 import streamlit as st
-import time
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Rotating user agents to avoid basic bot detection
+# -----------------------------
+# User-Agent rotation
+# -----------------------------
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -25,7 +26,9 @@ def get_headers():
         "Pragma": "no-cache"
     }
 
+# -----------------------------
 # Safe request wrapper
+# -----------------------------
 def safe_request(url, timeout=15):
     try:
         response = requests.get(url, headers=get_headers(), timeout=timeout)
@@ -37,7 +40,9 @@ def safe_request(url, timeout=15):
         st.warning(f"Request failed for {url}: {e}")
     return None
 
+# -----------------------------
 # Extract metadata from a page
+# -----------------------------
 def extract_page_metadata(url):
     try:
         response = safe_request(url)
@@ -57,7 +62,9 @@ def extract_page_metadata(url):
         st.warning(f"Metadata extraction failed for {url}: {e}")
         return url, "", "", ""
 
-# Analyze sitemap index or file
+# -----------------------------
+# Parse sitemap (index or file)
+# -----------------------------
 def analyze_sitemap_generic(sitemap_url):
     response = safe_request(sitemap_url)
     if not response:
@@ -77,7 +84,9 @@ def analyze_sitemap_generic(sitemap_url):
         return [loc.text for loc in root.findall('.//sm:loc', ns)]
     return []
 
-# Process a single sitemap file
+# -----------------------------
+# Analyze a single sitemap file
+# -----------------------------
 def analyze_sitemap(sitemap_url):
     urls = analyze_sitemap_generic(sitemap_url)
     url_count = len(urls)
@@ -97,7 +106,9 @@ def analyze_sitemap(sitemap_url):
 
     return url_count, top_level_directories, urls
 
+# -----------------------------
 # Fetch metadata in parallel
+# -----------------------------
 def fetch_all_metadata(urls, max_workers=10):
     results = []
     progress = st.progress(0)
@@ -112,3 +123,113 @@ def fetch_all_metadata(urls, max_workers=10):
             progress.progress((i + 1) / len(urls))
 
     return results
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.header("Overdose Sitemap Analyzer", divider='rainbow')
+analysis_type = st.radio("Choose analysis type:", ("Sitemap Index", "Sitemap File(s)"))
+
+if analysis_type == "Sitemap Index":
+    sitemap_index_urls = st.text_area("Enter the Sitemap Index URL(s), one per line:")
+    with st.expander("Advanced Settings"):
+        exclude_path = st.text_input("Exclude sitemaps containing this path (optional):")
+
+    if st.button("Run Analysis"):
+        sitemap_indexes = [url.strip() for url in sitemap_index_urls.split('\n') if url.strip()]
+        all_sitemaps = []
+        for sitemap_index_url in sitemap_indexes:
+            all_sitemaps.extend(analyze_sitemap_generic(sitemap_index_url))
+
+        if exclude_path:
+            all_sitemaps = [s for s in all_sitemaps if exclude_path.lower() not in s.lower()]
+
+        st.write(f"Analyzing {len(all_sitemaps)} sitemap files. Please wait...")
+
+        sitemap_info = {}
+        for sitemap in all_sitemaps:
+            url_count, top_level_dirs, urls = analyze_sitemap(sitemap)
+            sitemap_info[sitemap] = {
+                'url_count': url_count,
+                'top_level_directories': top_level_dirs,
+                'urls': urls
+            }
+
+        # Collect all URLs across all sitemaps
+        all_urls = [url for info in sitemap_info.values() for url in info['urls']]
+        st.write(f"Extracting metadata from {len(all_urls)} URLs...")
+
+        metadata = fetch_all_metadata(all_urls, max_workers=10)
+
+        url_data = []
+        for url, title, desc, h1 in metadata:
+            parsed_url = urlparse(url)
+            path_parts = parsed_url.path.split('/')
+            if parsed_url.path in ("/", ""):
+                top_level_dir = "Homepage"
+            elif len(path_parts) == 2:
+                top_level_dir = "Others"
+            else:
+                top_level_dir = path_parts[1]
+
+            url_data.append({
+                'Sitemap': "Multiple",
+                'URL': url,
+                'Top-Level Directory': top_level_dir,
+                'Page Title': title,
+                'Meta Description': desc,
+                'H1': h1
+            })
+
+        url_df = pd.DataFrame(url_data)
+        st.subheader("All URLs with Metadata")
+        st.dataframe(url_df.head(200))
+        st.download_button("Download CSV", url_df.to_csv(index=False).encode('utf-8'),
+                           "sitemap_urls.csv", "text/csv")
+
+elif analysis_type == "Sitemap File(s)":
+    sitemap_urls = st.text_area("Enter the Sitemap File(s), one per line:")
+    if st.button("Run Analysis"):
+        sitemaps = [url.strip() for url in sitemap_urls.split('\n') if url.strip()]
+        sitemap_info = {}
+        for sitemap in sitemaps:
+            url_count, top_level_dirs, urls = analyze_sitemap(sitemap)
+            sitemap_info[sitemap] = {
+                'url_count': url_count,
+                'top_level_directories': top_level_dirs,
+                'urls': urls
+            }
+
+        # Collect all URLs
+        all_urls = [url for info in sitemap_info.values() for url in info['urls']]
+        st.write(f"Extracting metadata from {len(all_urls)} URLs...")
+
+        metadata = fetch_all_metadata(all_urls, max_workers=10)
+
+        url_data = []
+        for url, title, desc, h1 in metadata:
+            parsed_url = urlparse(url)
+            path_parts = parsed_url.path.split('/')
+            if parsed_url.path in ("/", ""):
+                top_level_dir = "Homepage"
+            elif len(path_parts) == 2:
+                top_level_dir = "Others"
+            else:
+                top_level_dir = path_parts[1]
+
+            url_data.append({
+                'Sitemap': "Multiple",
+                'URL': url,
+                'Top-Level Directory': top_level_dir,
+                'Page Title': title,
+                'Meta Description': desc,
+                'H1': h1
+            })
+
+        url_df = pd.DataFrame(url_data)
+        st.subheader("All URLs with Metadata")
+        st.dataframe(url_df.head(200))
+        st.download_button("Download CSV", url_df.to_csv(index=False).encode('utf-8'),
+                           "sitemap_urls.csv", "text/csv")
+
+st.divider()
